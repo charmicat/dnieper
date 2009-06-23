@@ -5,21 +5,19 @@ Created on 20/06/2009
 '''
 
 import ConfigParser
-from ezt import Template
-import sys
+from webserver import Root, Download, Sources
+import cherrypy
 
-def main ():
-    config = ConfigParser.SafeConfigParser()
-    config.read("resources/dnieper.cfg")
-    dirs = config.items("Sources")
+def parse_config():
+    dirs = cherrypy.request.app.config['Sources']
     
-    print (config.get("Server", "port"))
     print (dirs)
 
-    mytemplate = Template("templates/default.ezt")
-    data = {"title":"fuck this shit"}
-    
-    mytemplate.generate(sys.stdout, data)
+def main ():
+    sources = Sources()
+    sources.root = Root()
+    sources.root.download = Download()
+    cherrypy.quickstart(sources, config = "resources/dnieper.cfg")
 
 
 if __name__ == '__main__':
