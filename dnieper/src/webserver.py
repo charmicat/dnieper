@@ -7,10 +7,10 @@ import cherrypy
 from cherrypy.lib.static import serve_file
 from ezt import Template
 from Entities import Entity, FileInfo
-
+import Tools
 
 class Root:
-    def index(self, directory="c:\mp3"):
+    def index(self, directory = "c:\mp3"):
         dirs = []
         files = []
         
@@ -18,13 +18,18 @@ class Root:
             absPath = os.path.abspath(filename)
 
             if os.path.isdir(absPath):
-                dir = Entity("/index?directory=" + absPath, os.path.basename(filename))
+                dir = Entity("/root?directory=" + absPath, os.path.basename(filename))
                 dirs.append(dir)
             else:
                 if filename.endswith(".mp3"):
                     info = FileInfo(absPath)
-                    file = Entity("/download/?filepath=" + absPath, os.path.basename(filename), "", info)
+                    file = Entity("/root/download/?filepath=" + absPath, os.path.basename(filename), "", info)
                     files.append(file)
+                elif filename.endswith(".m3u"):
+                    print "im hier"
+                    
+                    f = Tools.make_playlist("/root/download/?filepath=" + absPath)
+                    return serve_file(f.name, "application/x-download", "attachment")
                     
         mytemplate = Template("templates/default.ezt")
         data = {"title":"Dnieper Streaming Server",
@@ -89,7 +94,7 @@ class Download:
     index.exposed = True
     
 class OldRoot:
-    def index(self, directory="."):
+    def index(self, directory = "."):
         html = """<html><body><h2>Here are the files in the selected directory:</h2>
         <a href="index?directory=%s">Up</a><br />
         """ % os.path.dirname(os.path.abspath(directory))
@@ -110,4 +115,4 @@ if __name__ == '__main__':
     conf = {'global': {'tools.decode.encoding':"utf8", 'tools.encode.on':True, 'tools.decode.on':True, 'tools.encode.encoding':"utf8"}}
     root = Root()
     root.download = Download()
-    cherrypy.quickstart(root, config=conf)
+    cherrypy.quickstart(root, config = conf)
