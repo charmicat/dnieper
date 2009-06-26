@@ -4,10 +4,10 @@ import sys
 import StringIO
 import cherrypy
 
-from cherrypy.lib.static import serve_file
+from cherrypy.lib.static import serve_file, serve_fileobj
 from ezt import Template
 from Entities import Entity, FileInfo
-import Tools
+from tempfile import NamedTemporaryFile
 
 class Root:
     def index(self, directory = "c:\mp3"):
@@ -16,7 +16,7 @@ class Root:
         
         for filename in glob.glob(directory + '/*'):
             absPath = os.path.abspath(filename)
-
+            
             if os.path.isdir(absPath):
                 dir = Entity("/root?directory=" + absPath, os.path.basename(filename))
                 dirs.append(dir)
@@ -25,11 +25,6 @@ class Root:
                     info = FileInfo(absPath)
                     file = Entity("/root/download/?filepath=" + absPath, os.path.basename(filename), "", info)
                     files.append(file)
-                elif filename.endswith(".m3u"):
-                    print "im hier"
-                    
-                    f = Tools.make_playlist("/root/download/?filepath=" + absPath)
-                    return serve_file(f.name, "application/x-download", "attachment")
                     
         mytemplate = Template("templates/default.ezt")
         data = {"title":"Dnieper Streaming Server",
@@ -89,8 +84,30 @@ class Sources:
 
 class Download:
     
+    
+    def make_playlist(self, urlList):
+        f = StringIO.StringIO()
+        
+        for url in urlList:
+            f.write(url + "\n")
+        
+        return f
+    
     def index(self, filepath):
-        return serve_file(filepath, "application/x-download", "attachment")
+        mime = "application/x-download"
+        
+        if filepath.endswith(".m3u"):
+            server = "http://%s:%s" % (cherrypy.request.app.config['global']['server.socket_host'], cherrypy.request.app.config['global']['server.socket_port'])
+
+            f = self.make_playlist([server + "/root/download/?filepath=" + filepath])
+            
+            print f.getvalue()
+            
+            return serve_fileobj(f, "audio/x-mpegurl", "attachment")
+        elif filepath.endswith(".m3u"):
+            mime = "audio/mpeg"
+        
+        return serve_file(filepath, mime, "attachment")
     index.exposed = True
     
 class OldRoot:
