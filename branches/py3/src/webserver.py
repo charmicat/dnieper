@@ -1,7 +1,7 @@
 import glob
 import os.path
 import sys
-import StringIO
+import io as StringIO
 import cherrypy
 
 from cherrypy.lib.static import serve_file, serve_fileobj
@@ -101,7 +101,7 @@ class Download:
 
             f = self.make_playlist([server + "/root/download/?filepath=" + filepath])
             
-            print f.getvalue()
+            print (f.getvalue())
             
             return serve_fileobj(f, "audio/x-mpegurl", "attachment")
         elif filepath.endswith(".m3u"):

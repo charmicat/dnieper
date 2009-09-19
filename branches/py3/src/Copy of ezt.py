@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+transforms_valref_args#!/usr/bin/env python
 """ezt.py -- easy templating
 
 ezt templates are simply text files in whatever format you so desire
@@ -221,25 +221,15 @@ Directives
 #    http://code.google.com/p/ezt/
 #
 
-import os, re, sys
-
-if sys.version_info[0] >= 3:
-  # Python >=3.0
-  IntType = int
-  LongType = int
-  FloatType = float
-  StringType = str
-  unicode = str
-  from io import StringIO
-  from urllib.parse import quote_plus as urllib_parse_quote_plus
-else:
-  # Python <3.0
-  from types import IntType, LongType, FloatType, StringType
-  from urllib import quote_plus as urllib_parse_quote_plus
-  try:
-    from cStringIO import StringIO
-  except ImportError:
-    from StringIO import StringIO
+import re
+from types import StringType, IntType, FloatType, LongType
+import os
+import urllib
+try:
+  import cStringIO
+except ImportError:
+  import StringIO
+  cStringIO = StringIO
 
 #
 # Formatting types
@@ -315,7 +305,7 @@ class Template:
                                base_printer=_parse_format(base_format))
 
   def generate(self, fp, data):
-    if hasattr(data, '__getitem__') or hasattr(getattr(data, 'keys', None), '__call__'):
+    if hasattr(data, '__getitem__') or callable(getattr(data, 'keys', None)):
       # a dictionary-like object was passed. convert it to an
       # attribute-based object.
       class _data_ob:
@@ -490,7 +480,7 @@ class Template:
         method(method_args, fp, ctx, filename, line_number)
 
   def _cmd_print(self, transforms_valref, fp, ctx, filename, line_number):
-    (transforms, valref) = transforms_valref
+    transforms, valref = transforms_valref   
     value = _get_value(valref, ctx, filename, line_number)
     # if the value has a 'read' attribute, then it is a stream: copy it
     if hasattr(value, 'read'):
@@ -508,7 +498,7 @@ class Template:
 
   def _cmd_subst(self, transforms_valref_args, fp, ctx, filename,
                  line_number):
-    (transforms, valref, args) = transforms_valref_args
+    transforms, valref, args = transforms_valref_args
     fmt = _get_value(valref, ctx, filename, line_number)
     parts = _re_subst.split(fmt)
     for i in range(len(parts)):
@@ -525,7 +515,7 @@ class Template:
 
   def _cmd_include(self, valref_reader_printer, fp, ctx, filename,
                    line_number):
-    (valref, reader, printer) = valref_reader_printer
+    valref, reader, printer = valref_reader_printer
     fname = _get_value(valref, ctx, filename, line_number)
     ### note: we don't have the set of for_names to pass into this parse.
     ### I don't think there is anything to do but document it
@@ -534,7 +524,7 @@ class Template:
 
   def _cmd_insertfile(self, valref_reader_printer, fp, ctx, filename,
                       line_number):
-    (valref, reader, printer) = valref_reader_printer
+    valref, reader, printer = valref_reader_printer
     fname = _get_value(valref, ctx, filename, line_number)
     fp.write(reader.read_other(fname).text)
 
@@ -595,7 +585,7 @@ class Template:
 
   def _cmd_define(self, args, fp, ctx, filename, line_number):
     ((name,), unused, section) = args
-    valfp = StringIO()
+    valfp = cStringIO.StringIO()
     if section is not None:
       self._execute(section, valfp, ctx)
     ctx.defines[name] = valfp.getvalue()
@@ -656,23 +646,24 @@ def _prepare_ref(refname, for_names, file_args):
   return refname, start, rest
 
 def _get_value(refname_start_rest, ctx, filename, line_number):
-  """refname_start_rest -> a prepared `value reference' (see above).
+  """(refname, start, rest) -> a prepared `value reference' (see above).
   ctx -> an execution context instance.
 
   Does a name space lookup within the template name space.  Active
   for blocks take precedence over data dictionary members with the
   same name.
   """
-  (refname, start, rest) = refname_start_rest
+  
+  refname, start, rest = refname_start_rest
   if rest is None:
     # it was a string constant
     return start
 
   # get the starting object
-  if start in ctx.for_index:
+  if ctx.for_index.has_key(start):
     list, idx = ctx.for_index[start]
     ob = list[idx]
-  elif start in ctx.defines:
+  elif ctx.defines.has_key(start):
     ob = ctx.defines[start]
   elif hasattr(ctx.data, start):
     ob = getattr(ctx.data, start)
@@ -707,14 +698,10 @@ REPLACE_JS_MAP = (
 )
 
 # Various unicode whitespace
-if sys.version_info[0] >= 3:
-  # Python >=3.0
-  REPLACE_JS_UNICODE_MAP = (
-    ('\u0085', r'\u0085'), ('\u2028', r'\u2028'), ('\u2029', r'\u2029')
-  )
-else:
-  # Python <3.0
-  REPLACE_JS_UNICODE_MAP = eval("((u'\u0085', r'\u0085'), (u'\u2028', r'\u2028'), (u'\u2029', r'\u2029'))")
+# luiza: keeping this just outta lazyness
+REPLACE_JS_UNICODE_MAP = (
+  ('\u0085', '\u0085'), ('\u2028', '\u2028'), ('\u2029', '\u2029'),
+)
 
 # Why not cgi.escape? It doesn't do single quotes which are occasionally
 # used to contain HTML attributes and event handler definitions (unfortunately)
@@ -739,7 +726,7 @@ def _url_escape(s):
   ### UTF-8 encoded first.
   if isinstance(s, unicode):
     s = s.encode('utf8')
-  return urllib_parse_quote_plus(s)
+  return urllib.quote_plus(s)
 
 FORMATTERS = {
   FORMAT_RAW: None,
@@ -773,9 +760,6 @@ class _FileReader(Reader):
   """Reads templates from the filesystem."""
   def __init__(self, fname):
     self.text = open(fname, 'rb').read()
-    if sys.version_info[0] >= 3:
-      # Python >=3.0
-      self.text = self.text.decode()
     self._dir = os.path.dirname(fname)
     self.fname = fname
   def read_other(self, relative):

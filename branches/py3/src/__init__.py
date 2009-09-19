@@ -4,7 +4,7 @@ Created on 20/06/2009
 @author: talto
 '''
 
-import ConfigParser
+import configparser
 from webserver import Root, Download, Sources
 import cherrypy
 
