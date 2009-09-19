@@ -403,7 +403,9 @@ class MPEG:
         
         while curr_pos <= seeklimit:            
             # look for the sync byte
-            offset = string.find(header, chr(255), curr_pos)
+            print(header)
+            offset = header.find(chr(255).encode(), curr_pos)
+            print(chr(255).encode())
             #print curr_pos + seekstart
             if offset == -1:
                 curr_pos = len(header)  # Header after everything so far
