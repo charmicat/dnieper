@@ -1,0 +1,1 @@
+Dnieper is a simple mp3 streaming server (will support other audio types in the future). It is a remake of edna (http://edna.sourceforge.net/), based on Python 3.0 and with full unicode support.
